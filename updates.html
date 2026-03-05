@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UpdateHub | Corporate Portal</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --danger: #ef4444;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        body { font-family: 'Inter', sans-serif; margin: 0; background: var(--bg-main); color: var(--text-main); transition: background 0.3s ease; scroll-behavior: smooth; }
+
+        /* --- Navigation --- */
+        nav { 
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 10%;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 1000;
+        }
+        [data-theme="dark"] nav { background: rgba(30, 41, 59, 0.8); }
+
+        .brand { font-weight: 700; font-size: 1.25rem; letter-spacing: -0.025em; color: var(--primary); cursor: pointer; }
+
+        /* Fix: Theme Selector visibility */
+        .theme-wrapper select {
+            margin: 0;
+            height: 42px;
+            padding: 0 10px;
+            font-size: 0.9rem;
+            line-height: 42px; /* Centers text vertically */
+            width: 170px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-main);
+            appearance: none; /* Cleaner look */
+        }
+
+        /* --- View Switcher --- */
+        .view-tabs { display: flex; background: var(--border-color); padding: 4px; border-radius: 10px; margin-bottom: 2rem; }
+        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-radius: 8px; font-weight: 600; font-size: 0.85rem; transition: 0.2s; color: var(--text-muted); }
+        .tab.active { background: var(--card-bg); color: var(--primary); box-shadow: var(--shadow); }
+
+        .container { max-width: 850px; margin: 2rem auto; padding: 0 20px; }
+
+        .card { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow); margin-bottom: 1.5rem; overflow: hidden; }
+
+        input { 
+            width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); 
+            border-radius: 8px; margin-bottom: 1rem; background: var(--card-bg); color: var(--text-main); font-size: 0.95rem;
+            box-sizing: border-box; /* Prevents overflow in modal */
+        }
+
+        .btn { cursor: pointer; border: none; padding: 0.7rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; white-space: nowrap; width: 100%; margin-bottom: 8px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); }
+
+        .update-item { padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .update-content { display: none; padding: 1.5rem; border-top: 1px solid var(--border-color); background: var(--bg-main); }
+        .update-content.active { display: block; }
+
+        .reaction-bar { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
+        .reaction-btn { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 6px 14px; font-size: 0.75rem; cursor: pointer; color: var(--text-main); }
+        .reaction-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* Fix: Login Modal Alignment */
+        #loginModal { 
+            display: none; position: fixed; inset: 0; 
+            background: rgba(15, 23, 42, 0.8); 
+            backdrop-filter: blur(8px); 
+            z-index: 2000; justify-content: center; align-items: center; 
+        }
+        .modal-content { 
+            background: var(--card-bg); 
+            padding: 2.5rem; 
+            border-radius: 16px; 
+            width: 360px; 
+            box-sizing: border-box;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            text-align: center; 
+        }
+        .modal-content h3 { margin: 0 0 1.5rem 0; font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+
+<div id="loginModal">
+    <div class="modal-content">
+        <h3>UpdateHub Admin</h3>
+        <input type="password" id="passInput" placeholder="Enter Password">
+        <button class="btn btn-primary" onclick="checkAuth()">Sign In</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+</div>
+
+<nav>
+    <div class="brand" onclick="setView('live')">UpdateHub</div>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div class="theme-wrapper">
+            <select id="themeSelect" onchange="changeTheme(this.value)">
+                <option value="light">☀️ Light View</option>
+                <option value="dark">🌙 Dark View</option>
+            </select>
+        </div>
+        <button id="authBtn" class="btn btn-ghost" onclick="openModal()" style="width: auto; margin: 0;">Admin Access</button>
+    </div>
+</nav>
+
+<div class="container">
+    <section id="adminPanel" class="card" style="display:none; padding: 2rem;">
+        <h3 style="margin-top:0">Publish New Directive</h3>
+        <input type="text" id="postTitle" placeholder="Title of Update...">
+        <div id="editor-container" style="height: 200px; background: white; margin-bottom: 1rem; color: black;"></div>
+        <button class="btn btn-primary" id="submitBtn" onclick="handlePublish()">Publish to Live Feed</button>
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn btn-ghost" onclick="exportData()" style="font-size:0.75rem;">📥 Backup Data</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()" style="font-size:0.75rem;">📤 Restore Data</button>
+            <input type="file" id="importFile" hidden onchange="importData(event)">
+        </div>
+    </section>
+
+    <div class="view-tabs">
+        <div id="tab-live" class="tab active" onclick="setView('live')">Live Feed (Active)</div>
+        <div id="tab-history" class="tab" onclick="setView('history')">Archive Vault (15d+)</div>
+    </div>
+
+    <input type="text" id="searchInput" placeholder="🔍 Search current updates..." onkeyup="renderFeed()">
+    <div id="feedArea"></div>
+</div>
+
+<script>
+    let isCreator = false;
+    let currentView = 'live';
+    let db = JSON.parse(localStorage.getItem('updatehub_db')) || [];
+    const FIFTEEN_DAYS_MS = 1296000000;
+
+    const quill = new Quill('#editor-container', {
+        theme: 'snow',
+        modules: { toolbar: [['bold', 'italic'], [{ 'list': 'bullet' }], ['link']] }
+    });
+
+    function setView(view) {
+        currentView = view;
+        document.getElementById('tab-live').classList.toggle('active', view === 'live');
+        document.getElementById('tab-history').classList.toggle('active', view === 'history');
+        renderFeed();
+    }
+
+    function changeTheme(v) { 
+        document.documentElement.setAttribute('data-theme', v); 
+        localStorage.setItem('hub-theme', v); 
+    }
+
+    function openModal() {
+        if (isCreator) { if(confirm("Sign out?")) { isCreator = false; refreshUI(); } }
+        else { document.getElementById('loginModal').style.display = 'flex'; }
+    }
+
+    function closeModal() { document.getElementById('loginModal').style.display = 'none'; }
+
+    function checkAuth() {
+        if (document.getElementById('passInput').value === "Admin123") {
+            isCreator = true; closeModal(); refreshUI();
+        } else { alert("Unauthorized."); }
+    }
+
+    function refreshUI() {
+        document.getElementById('adminPanel').style.display = isCreator ? 'block' : 'none';
+        document.getElementById('authBtn').innerText = isCreator ? 'Sign Out' : 'Admin Access';
+        renderFeed();
+    }
+
+    function handlePublish() {
+        const title = document.getElementById('postTitle').value.trim();
+        const body = quill.root.innerHTML;
+        if (!title || body === '<p><br></p>') return;
+        db.unshift({ id: Date.now(), title, body, timestamp: Date.now() });
+        localStorage.setItem('updatehub_db', JSON.stringify(db));
+        resetEditor(); renderFeed();
+    }
+
+    function renderFeed() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        const now = Date.now();
+        const filteredByDate = db.filter(u => {
+            const isOld = (now - u.timestamp) > FIFTEEN_DAYS_MS;
+            return currentView === 'history' ? isOld : !isOld;
+        });
+        const finalData = filteredByDate.filter(u => u.title.toLowerCase().includes(term) || u.body.toLowerCase().includes(term));
+
+        document.getElementById('feedArea').innerHTML = finalData.map(u => `
+            <div class="card" id="update-${u.id}">
+                <div class="update-item" onclick="toggleCard(${u.id})">
+                    <div>
+                        <div style="font-weight:600;">${u.title}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${new Date(u.timestamp).toLocaleDateString()}</div>
+                    </div>
+                    <span id="icon-${u.id}">+</span>
+                </div>
+                <div class="update-content" id="content-${u.id}">
+                    <div class="ql-editor" style="padding:0; min-height:auto; color:inherit;">${u.body}</div>
+                    <div class="reaction-bar">
+                        <button class="reaction-btn" onclick="shareLink(${u.id})">🔗 Share Link</button>
+                        <button class="reaction-btn" onclick="alert('📧 Reported as: Per my last email')">📧 Per my last email</button>
+                        <button class="reaction-btn" onclick="alert('☕ Agreed: Needs coffee')">☕ Needs more coffee</button>
+                        <button class="reaction-btn" onclick="alert('🤝 Acknowledged: Let\\'s circle back')">🤝 Let's circle back</button>
+                    </div>
+                    ${isCreator ? `<div style="margin-top:15px; border-top:1px solid var(--border-color); padding-top:10px;">
+                        <span style="color:var(--danger); cursor:pointer; font-size:0.8rem; font-weight:700;" onclick="deletePost(${u.id})">DELETE PERMANENTLY</span>
+                    </div>` : ''}
+                </div>
+            </div>
+        `).join('') || `<p style="text-align:center; padding:2rem; color:var(--text-muted);">No items in ${currentView} view.</p>`;
+        handleDeepLink();
+    }
+
+    function toggleCard(id) {
+        const content = document.getElementById(`content-${id}`);
+        if(!content) return;
+        content.classList.toggle('active');
+        document.getElementById(`icon-${id}`).innerText = content.classList.contains('active') ? '−' : '+';
+    }
+
+    function shareLink(id) {
+        const url = `${window.location.origin}${window.location.pathname}#update-${id}`;
+        navigator.clipboard.writeText(url).then(() => alert("Direct link copied to clipboard!"));
+    }
+
+    function handleDeepLink() {
+        const hash = window.location.hash;
+        if (hash.startsWith('#update-')) {
+            const id = parseInt(hash.split('-')[1]);
+            const item = db.find(u => u.id === id);
+            if (item) {
+                const isOld = (Date.now() - item.timestamp) > FIFTEEN_DAYS_MS;
+                if (isOld && currentView !== 'history') { setView('history'); return; }
+                if (!isOld && currentView !== 'live') { setView('live'); return; }
+                setTimeout(() => { toggleCard(id); document.getElementById(`update-${id}`).scrollIntoView(); }, 200);
+            }
+        }
+    }
+
+    function deletePost(id) { if(confirm("Confirm deletion?")) { db = db.filter(i => i.id !== id); localStorage.setItem('updatehub_db', JSON.stringify(db)); renderFeed(); } }
+    function resetEditor() { document.getElementById('postTitle').value = ''; quill.setContents([]); }
+    function exportData() {
+        const blob = new Blob([JSON.stringify(db)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `UpdateHub_Backup.json`; a.click();
+    }
+    function importData(e) {
+        const reader = new FileReader();
+        reader.onload = (ev) => { db = JSON.parse(ev.target.result); localStorage.setItem('updatehub_db', JSON.stringify(db)); renderFeed(); alert("Database Restored!"); };
+        reader.readAsText(e.target.files[0]);
+    }
+
+    window.onload = () => {
+        changeTheme(localStorage.getItem('hub-theme') || 'light');
+        document.getElementById('themeSelect').value = localStorage.getItem('hub-theme') || 'light';
+        renderFeed();
+    };
+</script>
+</body>
+</html>

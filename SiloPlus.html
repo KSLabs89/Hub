@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silo v3.3 - Feature Complete</title>
+    <style>
+        :root { --primary-yellow: #fbbc04; --bg-color: #f1f3f4; --card-bg: #ffffff; --text-color: #202124; --border-color: #e0e0e0; --sidebar-hover: #f1f3f4; --sidebar-active: #feefc3; --header-bg: #ffffff; --shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        [data-theme="dark"] { --bg-color: #202124; --card-bg: #2d2e31; --text-color: #e8eaed; --border-color: #5f6368; --sidebar-hover: #3c4043; --sidebar-active: #41331c; --header-bg: #202124; --shadow: 0 1px 3px rgba(0,0,0,0.6); }
+
+        body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; background: var(--bg-color); margin: 0; color: var(--text-color); transition: background 0.3s; overflow: hidden; }
+        header { background: var(--header-bg); padding: 8px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; height: 60px; box-sizing: border-box; }
+        .btn-main { padding: 8px 15px; background: var(--primary-yellow); border: none; cursor: pointer; font-weight: bold; border-radius: 4px; color: #000; }
+        
+        .main-content { display: flex; height: calc(100vh - 60px); }
+        .sidebar { width: 260px; flex-shrink: 0; border-right: 1px solid var(--border-color); overflow-y: auto; padding-top: 10px; }
+        .sidebar-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-size: 0.95rem; color: var(--text-color); border-radius: 0 25px 25px 0; margin-right: 10px; }
+        .sidebar-item.active { background: var(--sidebar-active); font-weight: bold; color: #000; }
+        .sidebar-item.creator-tab { color: var(--primary-yellow); font-weight: bold; border-bottom: 2px solid var(--primary-yellow); border-radius: 0; margin-bottom: 10px; }
+        .sidebar-section-title { font-size: 0.7rem; font-weight: bold; padding: 15px 25px 5px; text-transform: uppercase; opacity: 0.5; }
+
+        .view-container { flex-grow: 1; padding: 30px; overflow-y: auto; display: none; }
+        .view-container.active { display: block; }
+
+        .toolbar { display: flex; gap: 5px; padding: 10px; background: var(--bg-color); border-radius: 8px; margin-bottom: 15px; flex-wrap: wrap; sticky; top: 0; z-index: 10; }
+        .tool-btn { background: var(--card-bg); border: 1px solid var(--border-color); cursor: pointer; padding: 6px 12px; border-radius: 4px; color: var(--text-color); font-weight: bold; }
+        .tool-btn:hover { background: var(--primary-yellow); color: #000; }
+
+        .note-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; align-content: start; }
+        .note-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; height: 280px; display: flex; flex-direction: column; overflow: hidden; position: relative; transition: transform 0.2s; }
+        .note-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+        .note-card-title { padding: 18px 18px 5px; font-weight: 700; font-size: 1.1rem; color: var(--primary-yellow); }
+        .note-card-excerpt { padding: 0 18px 18px; font-size: 0.95rem; opacity: 0.8; overflow-y: auto; flex-grow: 1; line-height: 1.6; }
+
+        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--card-bg); z-index: 2000; flex-direction: column; }
+        .modal-body { flex: 1; overflow-y: auto; padding: 20px 40px; display: flex; flex-direction: column; align-items: center; }
+        .modal-wrap { max-width: 850px; width: 100%; }
+        
+        .editor-area { outline: none; min-height: 400px; font-size: 1.1rem; line-height: 1.7; color: var(--text-color); }
+        .card-actions { position: absolute; bottom: 10px; right: 10px; display: flex; gap: 5px; }
+        .action-btn { background: rgba(0,0,0,0.05); border: none; cursor: pointer; border-radius: 50%; padding: 5px; font-size: 1rem; }
+        .pin-tag { position: absolute; top: 10px; right: 10px; font-size: 1.2rem; }
+        
+        .mode-indicator { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-right: 10px; }
+        .mode-viewer { background: #e8f0fe; color: #1967d2; }
+        .mode-editor { background: #fef7e0; color: #c5221f; }
+    </style>
+</head>
+<body onload="checkSession()">
+
+<div id="auth-container" style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+    <div style="background: var(--card-bg); padding: 2.5rem; border-radius: 12px; border: 1px solid var(--border-color); text-align: center;">
+        <h1 style="color: var(--primary-yellow);">SILO</h1>
+        <input type="text" id="username" placeholder="Username" style="display:block; margin: 10px auto; padding: 12px; width: 220px;">
+        <button onclick="handleAuth()" class="btn-main" style="width: 245px;">Enter Workspace</button>
+    </div>
+</div>
+
+<div id="app-container" style="display: none;">
+    <header>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-weight:bold; font-size:1.6rem; color:var(--primary-yellow);">SILO</div>
+            <span id="mode-badge" class="mode-indicator mode-viewer">Viewer Mode</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button id="toggle-mode-btn" onclick="requestEditorAccess()" class="btn-main" style="background:var(--primary-yellow);">Unlock Editor</button>
+            <button onclick="exportData()" class="btn-main" style="background:var(--border-color);">Backup</button>
+            <button onclick="document.getElementById('import-input').click()" class="btn-main" style="background:var(--border-color);">Restore</button>
+            <input type="file" id="import-input" style="display:none" onchange="importData(event)">
+            <button onclick="toggleDarkMode()" style="background:none; border:none; cursor:pointer; font-size:1.3rem;">🌓</button>
+            <button onclick="logout()" class="btn-main">Logout</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="sidebar" id="sidebar-nav"></div>
+
+        <div id="view-creator" class="view-container">
+            <div style="max-width: 800px; margin: 0 auto; background: var(--card-bg); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color);">
+                <input type="text" id="note-title" placeholder="Title..." style="width:100%; border:none; background:transparent; font-size:2rem; font-weight:bold; color:var(--text-color); outline:none; margin-bottom:15px;">
+                
+                <div class="toolbar">
+                    <button class="tool-btn" onclick="exec('bold')">B</button>
+                    <button class="tool-btn" onclick="exec('italic')">I</button>
+                    <button class="tool-btn" onclick="exec('underline')">U</button>
+                    <button class="tool-btn" onclick="exec('insertUnorderedList')">• Bullet</button>
+                    <button class="tool-btn" onclick="exec('insertOrderedList')">1. List</button>
+                    <button class="tool-btn" onclick="exec('hiliteColor', '#fff2ac')">🖍️ Highlight</button>
+                </div>
+
+                <div id="note-content" class="editor-area" contenteditable="true" style="min-height:300px;"></div>
+                
+                <div style="display:flex; justify-content:space-between; margin-top:20px; border-top:1px solid var(--border-color); padding-top:20px;">
+                    <input type="text" id="note-label" placeholder="Add Label..." style="background:transparent; border:none; border-bottom:1px solid var(--border-color); color:var(--text-color); outline:none; width:200px;">
+                    <button onclick="addNote()" class="btn-main">Save Note</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-browser" class="view-container active">
+            <h2 id="current-view-title" style="margin-top:0; opacity:0.6;">All Notes</h2>
+            <div id="note-grid" class="note-grid"></div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-overlay">
+    <div id="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:15px 40px; border-bottom:1px solid var(--border-color); background:var(--header-bg);">
+        <div id="editor-tools" class="toolbar" style="margin:0; background:transparent; padding:0;">
+            <button class="tool-btn" onclick="exec('bold')">B</button>
+            <button class="tool-btn" onclick="exec('insertUnorderedList')">• Bullet</button>
+            <button class="tool-btn" onclick="exec('insertOrderedList')">1. List</button>
+            <button class="tool-btn" onclick="exec('hiliteColor', '#fff2ac')">🖍️</button>
+        </div>
+        <div id="viewer-tools" style="font-weight: bold; opacity: 0.5;">Read Only Mode</div>
+        <button id="modal-save-btn" onclick="saveEdit()" class="btn-main">Done (Esc)</button>
+    </div>
+    <div class="modal-body">
+        <div class="modal-wrap">
+            <input type="text" id="edit-title" style="font-size:2.2rem; font-weight:bold; border:none; background:transparent; color:var(--text-color); outline:none; margin-bottom:20px; width:100%;">
+            <div id="edit-content" class="editor-area" contenteditable="true"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null, currentEditId = null, activeFilter = 'all', pinnedLabels = [], isEditor = false;
+
+    function exec(cmd, val = null) { if(isEditor) document.execCommand(cmd, false, val); }
+
+    function checkSession() {
+        const s = localStorage.getItem('silo_active_session');
+        if(s) { 
+            currentUser = s; 
+            pinnedLabels = JSON.parse(localStorage.getItem(`pinned_${s}`)) || [];
+            document.documentElement.setAttribute('data-theme', localStorage.getItem(`theme_${s}`) || 'light');
+            launch(); 
+        }
+    }
+
+    function launch() { 
+        document.getElementById('auth-container').style.display='none'; 
+        document.getElementById('app-container').style.display='block'; 
+        applyModeUI();
+        switchView('all'); 
+    }
+
+    function requestEditorAccess() {
+        if (isEditor) {
+            isEditor = false;
+            applyModeUI();
+            if(activeFilter === 'CREATOR') switchView('all');
+            return;
+        }
+        const pw = prompt("Enter Admin Password to enable Editor Mode:");
+        if (pw === "Admin123") {
+            isEditor = true;
+            applyModeUI();
+        } else if (pw !== null) {
+            alert("Incorrect password.");
+        }
+    }
+
+    function applyModeUI() {
+        const badge = document.getElementById('mode-badge');
+        const toggleBtn = document.getElementById('toggle-mode-btn');
+        
+        badge.innerText = isEditor ? "Editor Mode" : "Viewer Mode";
+        badge.className = `mode-indicator ${isEditor ? 'mode-editor' : 'mode-viewer'}`;
+        toggleBtn.innerText = isEditor ? "Lock Editor" : "Unlock Editor";
+        
+        // Modal logic
+        document.getElementById('editor-tools').style.display = isEditor ? 'flex' : 'none';
+        document.getElementById('viewer-tools').style.display = isEditor ? 'none' : 'block';
+        document.getElementById('modal-save-btn').innerText = isEditor ? "Save (Esc)" : "Close (Esc)";
+        
+        document.getElementById('edit-title').readOnly = !isEditor;
+        document.getElementById('edit-content').contentEditable = isEditor;
+        
+        updateSidebar();
+        renderNotes();
+    }
+
+    function handleAuth() {
+        const u = document.getElementById('username').value.trim();
+        if(u) { currentUser = u; localStorage.setItem('silo_active_session', u); launch(); }
+    }
+
+    function logout() { localStorage.removeItem('silo_active_session'); location.reload(); }
+    function getNotes() { return JSON.parse(localStorage.getItem(`notes_${currentUser}`)) || []; }
+    function saveNotes(n) { localStorage.setItem(`notes_${currentUser}`, JSON.stringify(n)); }
+
+    function switchView(filter) {
+        if (filter === 'CREATOR' && !isEditor) {
+            alert("Access Denied: Editor mode required to create notes.");
+            return;
+        }
+        activeFilter = filter;
+        document.getElementById('view-browser').classList.toggle('active', filter !== 'CREATOR');
+        document.getElementById('view-creator').classList.toggle('active', filter === 'CREATOR');
+        if(filter !== 'CREATOR') {
+            document.getElementById('current-view-title').innerText = filter === 'all' ? 'All Notes' : `Label: ${filter}`;
+            renderNotes();
+        }
+        updateSidebar();
+    }
+
+    function addNote() {
+        const t = document.getElementById('note-title').value, c = document.getElementById('note-content').innerHTML, l = document.getElementById('note-label').value;
+        if(!t && c === "") return;
+        let n = getNotes();
+        n.unshift({id:Date.now(), title:t, content:c, label:l, trashed:false, pinned: false});
+        saveNotes(n);
+        document.getElementById('note-title').value = ''; document.getElementById('note-content').innerHTML = '';
+        switchView('all');
+    }
+
+    function renderNotes() {
+        let all = getNotes();
+        if (activeFilter === 'trash') all = all.filter(x => x.trashed);
+        else if (activeFilter !== 'all') all = all.filter(x => !x.trashed && x.label === activeFilter);
+        else all = all.filter(x => !x.trashed);
+
+        // Sort: Pinned first
+        all.sort((a, b) => (b.pinned || false) - (a.pinned || false));
+
+        const grid = document.getElementById('note-grid');
+        grid.innerHTML = all.map((n, index) => {
+            const isPinned = n.pinned || false;
+            return `
+            <div class="note-card" onclick="openEdit(${n.id})">
+                ${isPinned ? '<div class="pin-tag">📌</div>' : ''}
+                <div class="note-card-title">${n.title || 'Untitled'}</div>
+                <div class="note-card-excerpt">${n.content}</div>
+                <div class="card-actions">
+                    ${!isEditor && isPinned ? `
+                        <button class="action-btn" onclick="event.stopPropagation(); moveNote(${n.id}, -1)">←</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); moveNote(${n.id}, 1)">→</button>
+                    ` : ''}
+                    <button class="action-btn" title="Pin Note" onclick="event.stopPropagation(); toggleNotePin(${n.id})">${isPinned ? '📍' : '📌'}</button>
+                    ${isEditor ? `<button class="action-btn" onclick="event.stopPropagation(); deleteNote(${n.id})">🗑️</button>` : ''}
+                </div>
+            </div>
+        `}).join('');
+    }
+
+    function toggleNotePin(id) {
+        let n = getNotes();
+        let item = n.find(x => x.id === id);
+        item.pinned = !item.pinned;
+        saveNotes(n);
+        renderNotes();
+    }
+
+    function moveNote(id, direction) {
+        let n = getNotes();
+        const index = n.findIndex(x => x.id === id);
+        const newPos = index + direction;
+        if (newPos >= 0 && newPos < n.length) {
+            const temp = n[index];
+            n[index] = n[newPos];
+            n[newPos] = temp;
+            saveNotes(n);
+            renderNotes();
+        }
+    }
+
+    function updateSidebar() {
+        const notes = getNotes().filter(x => !x.trashed);
+        const labels = [...new Set(notes.map(x => x.label).filter(l => l))];
+        let html = '';
+        
+        if(isEditor) {
+            html += `<div class="sidebar-item creator-tab ${activeFilter==='CREATOR'?'active':''}" onclick="switchView('CREATOR')">➕ Create Note</div>`;
+        }
+        
+        html += `<div class="sidebar-item ${activeFilter==='all'?'active':''}" onclick="switchView('all')">📝 All Notes</div>`;
+        
+        if(pinnedLabels.length) {
+            html += `<div class="sidebar-section-title">Pinned Labels</div>`;
+            pinnedLabels.forEach(l => {
+                html += `<div class="sidebar-item ${activeFilter===l?'active':''}" onclick="switchView('${l}')">📌 ${l} <span onclick="togglePin(event, '${l}')">✕</span></div>`;
+            });
+        }
+        html += `<div class="sidebar-section-title">Labels</div>`;
+        labels.filter(l => !pinnedLabels.includes(l)).forEach(l => {
+            html += `<div class="sidebar-item ${activeFilter===l?'active':''}" onclick="switchView('${l}')">🏷️ ${l} <span onclick="togglePin(event, '${l}')">📌</span></div>`;
+        });
+        
+        if(isEditor) {
+            html += `<div class="sidebar-item ${activeFilter==='trash'?'active':''}" onclick="switchView('trash')" style="margin-top:20px;">🗑️ Trash</div>`;
+        }
+        
+        document.getElementById('sidebar-nav').innerHTML = html;
+    }
+
+    function togglePin(e, label) {
+        e.stopPropagation();
+        if (pinnedLabels.includes(label)) pinnedLabels = pinnedLabels.filter(l => l !== label);
+        else if (pinnedLabels.length < 8) pinnedLabels.push(label);
+        localStorage.setItem(`pinned_${currentUser}`, JSON.stringify(pinnedLabels));
+        updateSidebar();
+    }
+
+    function deleteNote(id) {
+        if(!isEditor) return;
+        let n = getNotes(); let item = n.find(x => x.id === id);
+        if(item.trashed) n = n.filter(x => x.id !== id); else item.trashed = true;
+        saveNotes(n); renderNotes();
+    }
+
+    function openEdit(id) {
+        currentEditId = id; const n = getNotes().find(x => x.id === id);
+        document.getElementById('edit-title').value = n.title;
+        document.getElementById('edit-content').innerHTML = n.content;
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function saveEdit() {
+        if (isEditor) {
+            let n = getNotes(); let item = n.find(x => x.id === currentEditId);
+            item.title = document.getElementById('edit-title').value;
+            item.content = document.getElementById('edit-content').innerHTML;
+            saveNotes(n);
+        }
+        document.getElementById('modal-overlay').style.display = 'none'; 
+        renderNotes();
+    }
+
+    function toggleDarkMode() {
+        const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem(`theme_${currentUser}`, next);
+    }
+
+    function exportData() {
+        const blob = new Blob([localStorage.getItem(`notes_${currentUser}`)], {type: 'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'silo_complete.json'; a.click();
+    }
+    function importData(e) {
+        const reader = new FileReader();
+        reader.onload = (ev) => { localStorage.setItem(`notes_${currentUser}`, ev.target.result); renderNotes(); };
+        reader.readAsText(e.target.files[0]);
+    }
+    window.onkeydown = (e) => { if(e.key === "Escape" && currentEditId) saveEdit(); };
+</script>
+</body>
+</html>
